@@ -1,0 +1,1344 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+
+# Set page config with optimized settings for performance - MUST be the first Streamlit command
+st.set_page_config(
+    page_title="Laboratory Calculator",
+    page_icon="🧪",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'About': "Laboratory Calculator for molarity, molality, normality, and more."
+    }
+)
+
+from calculations import (
+    calculate_molarity, calculate_molality, calculate_mass_from_molarity,
+    calculate_mass_from_molality, calculate_volume_from_molarity,
+    calculate_volume_from_concentration, calculate_moles, calculate_mass_from_moles,
+    calculate_normality, calculate_equivalent_mass, calculate_mass_from_normality,
+    convert_molarity_to_normality, convert_normality_to_molarity
+)
+
+# Custom CSS for styling
+st.markdown("""
+<style>
+    /* Responsive typography */
+    html {
+        font-size: 16px;
+    }
+    
+    @media screen and (max-width: 768px) {
+        html {
+            font-size: 14px;
+        }
+    }
+    
+    @media screen and (max-width: 480px) {
+        html {
+            font-size: 12px;
+        }
+    }
+    
+    /* Responsive container */
+    .stApp {
+        max-width: 100%;
+        padding: 0.5rem;
+    }
+    
+    /* Responsive header */
+    .main-header {
+        font-size: clamp(2rem, 5vw, 3rem);
+        background: linear-gradient(45deg, #2E86C1, #3498DB);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        margin: 1rem 0;
+        font-weight: 800;
+        letter-spacing: -1px;
+        animation: fadeIn 0.8s ease-in;
+        padding: 0 1rem;
+    }
+    .sub-header {
+        font-size: 1.8rem;
+        color: #2874A6;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        border-bottom: 2px solid #AED6F1;
+        padding-bottom: 0.3rem;
+    }
+    .section-header {
+        font-size: 1.5rem;
+        color: #5DADE2;
+        margin-top: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+    .success-box {
+        background-color: #D4EFDF;
+        border-left: 5px solid #2ECC71;
+        padding: 10px;
+        border-radius: 0.3rem;
+    }
+    .info-box {
+        background-color: #D6EAF8;
+        border-left: 5px solid #3498DB;
+        padding: 10px;
+        border-radius: 0.3rem;
+    }
+    .stButton>button {
+        background: linear-gradient(45deg, #2E86C1, #3498DB);
+        color: white;
+        border-radius: 12px;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(46, 134, 193, 0.2);
+        backdrop-filter: blur(8px);
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(46, 134, 193, 0.3);
+        background: linear-gradient(45deg, #3498DB, #2E86C1);
+    }
+    .stButton>button:active {
+        transform: translateY(1px);
+    }
+    .home-button>button {
+        background-color: #5499C7;
+        color: white;
+    }
+    .home-button>button:hover {
+        background-color: #2874A6;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 1rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #D6EAF8;
+        border-radius: 0.5rem 0.5rem 0 0;
+        padding: 0.5rem 1rem;
+        border: none;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #AED6F1;
+        border-bottom: 2px solid #2E86C1;
+    }
+    .calculator-container {
+        background: rgba(248, 249, 249, 0.8);
+        padding: clamp(1rem, 3vw, 2rem);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(46, 134, 193, 0.1);
+        margin: 1rem 0;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(174, 214, 241, 0.2);
+        transition: transform 0.3s ease;
+        width: 100%;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    /* Responsive form elements */
+    div.stNumberInput, div.stSelectbox {
+        width: 100% !important;
+        max-width: 400px;
+    }
+    
+    /* Improve button responsiveness */
+    .stButton > button {
+        width: 100%;
+        max-width: 400px;
+        margin: 0.5rem 0;
+        height: auto;
+        min-height: 45px;
+        white-space: normal;
+        padding: 0.8rem 1rem;
+    }
+    
+    /* Responsive data display */
+    div[data-testid="stDataFrame"] {
+        width: 100%;
+        overflow-x: auto;
+    }
+    
+    /* Improve spacing on mobile */
+    @media screen and (max-width: 768px) {
+        .stMarkdown {
+            font-size: 0.9rem;
+        }
+        
+        .calculator-container {
+            padding: 1rem;
+        }
+        
+        .success-box, .info-box {
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+        }
+    }
+    .calculator-container:hover {
+        transform: translateY(-4px);
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    /* Glass morphism effect for inputs */
+    div.stNumberInput input, div[data-baseweb="select"] div {
+        background: rgba(255, 255, 255, 0.9) !important;
+        border: 1px solid rgba(174, 214, 241, 0.3) !important;
+        backdrop-filter: blur(4px) !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease;
+    }
+    div.stNumberInput input:focus, div[data-baseweb="select"] div:focus {
+        box-shadow: 0 0 0 2px rgba(46, 134, 193, 0.2) !important;
+        transform: translateY(-1px);
+    }
+    div[data-testid="stExpander"] details summary p {
+        font-weight: bold;
+        color: #2E86C1;
+    }
+    div.stNumberInput input {
+        border-radius: 0.3rem;
+    }
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+        border-radius: 0.3rem;
+    }
+    .footer {
+        text-align: center;
+        margin-top: 2rem;
+        color: #7F8C8D;
+        font-size: 0.9rem;
+    }
+    .footer a {
+        color: #2E86C1;
+        text-decoration: none;
+    }
+    .footer a:hover {
+        text-decoration: underline;
+    }
+    /* Chemistry-themed decoration */
+    .molecule-decoration {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        opacity: 0.15;
+        z-index: -1;
+        font-size: 4rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+from chemical_data import periodic_table, common_compounds
+from utils import validate_inputs, format_scientific_notation
+
+# The st.set_page_config is already at the top of the file - removed duplicate
+
+# Initialize session state for navigation
+if 'page' not in st.session_state:
+    st.session_state.page = 'welcome'
+
+# App title with custom styling
+st.markdown('<h1 class="main-header">🧪 Laboratory Calculator</h1>', unsafe_allow_html=True)
+
+# Add a molecule decoration to the background
+st.markdown('<div class="molecule-decoration">⚗️</div>', unsafe_allow_html=True)
+
+# Add Laboratory Work Planning section in sidebar with JavaScript for Enter key handling
+st.sidebar.title("Laboratory Work Planning")
+# Add JavaScript to handle Enter key
+st.markdown("""
+<script>
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        const textArea = document.querySelector('textarea[aria-label="What laboratory work needs to be done today?"]');
+        if (document.activeElement === textArea) {
+            e.preventDefault();
+            const event = new Event('change', { bubbles: true });
+            textArea.dispatchEvent(event);
+        }
+    }
+});
+</script>
+""", unsafe_allow_html=True)
+
+if lab_work_needed:
+    st.sidebar.success("Work items noted. Use the calculators below to complete your tasks.")
+
+# Navigation function to change pages with optimized performance
+def navigate_to(page):
+    st.session_state.page = page
+    # Use rerun to ensure page change is immediate
+    st.rerun()
+    
+# Add sidebar navigation
+if st.session_state.page != 'welcome':
+    if st.sidebar.button("⬅️ Return to Home Page"):
+        navigate_to('welcome')
+
+# Welcome/Home page
+if st.session_state.page == 'welcome':
+    st.markdown('<h2 class="sub-header">Welcome to the Chemistry Laboratory Calculator</h2>', unsafe_allow_html=True)
+    
+    # Use markdown with HTML for better formatting and performance
+    st.markdown("""
+    <div class="info-box" style="padding:15px; margin-bottom:25px">
+    <h3 style="color:#2874A6; margin-top:0">This application helps with common chemistry laboratory calculations including:</h3>
+    <ul style="margin-bottom:0">
+      <li><b>Solution Preparation</b>: Molarity, molality, and normality calculations</li>
+      <li><b>Stoichiometry</b>: Mass-mole conversions and reagent requirements</li>
+      <li><b>Laboratory Techniques</b>: Dilution calculations and unit conversions</li>
+      <li><b>Reference Data</b>: Common compounds and periodic table information</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<h3 class="section-header">What calculation do you need to perform today?</h3>', unsafe_allow_html=True)
+    
+    # Add a container with shadow and rounded corners for the calculation buttons
+    st.markdown('<div class="calculator-container">', unsafe_allow_html=True)
+    
+    # Create a grid layout for calculation options
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### Concentration Calculations")
+        if st.button("Molarity Calculator", use_container_width=True, key="mol_calc_btn"):
+            navigate_to("molarity")
+        if st.button("Molality Calculator", use_container_width=True, key="mola_calc_btn"):
+            navigate_to("molality")
+        if st.button("Normality Calculator", use_container_width=True, key="norm_calc_btn"):
+            navigate_to("normality")
+            
+    with col2:
+        st.markdown("### Mole Calculations")
+        if st.button("Mass ↔ Moles Converter", use_container_width=True, key="mole_conv_btn"):
+            navigate_to("moles")
+        if st.button("Reagent Preparation", use_container_width=True, key="reagent_btn"):
+            navigate_to("reagent")
+        if st.button("Unit Conversion", use_container_width=True, key="unit_conv_btn"):
+            navigate_to("unit_conversion")
+    
+    with col3:
+        st.markdown("### Reference & Tools")
+        if st.button("Chemical Data Reference", use_container_width=True, key="chem_data_btn"):
+            navigate_to("chemical_data")
+        if st.button("Dilution Calculator", use_container_width=True, key="dilution_btn"):
+            navigate_to("dilution")
+            
+    # Close the calculator-container div
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Set the current calculation type based on the session state page
+if st.session_state.page == 'molarity':
+    calculation_type = "Molarity Calculator"
+elif st.session_state.page == 'molality':
+    calculation_type = "Molality Calculator"
+elif st.session_state.page == 'normality':
+    calculation_type = "Normality Calculator"
+elif st.session_state.page == 'moles':
+    calculation_type = "Mole Calculator"
+elif st.session_state.page == 'reagent':
+    calculation_type = "Reagent Preparation"
+elif st.session_state.page == 'unit_conversion':
+    calculation_type = "Unit Conversion"
+elif st.session_state.page == 'chemical_data':
+    calculation_type = "Chemical Data Reference"
+elif st.session_state.page == 'dilution':
+    calculation_type = "Dilution Calculator"
+else:
+    # Default for welcome page or any other unhandled page
+    calculation_type = None
+
+# Helper function for displaying the return home button at the top of each page
+def display_return_home_button():
+    if st.button("🏠 Return to Home Page", key="top_home_btn"):
+        navigate_to('welcome')
+    st.markdown("---")  # Add a separator line
+
+# Main content based on selection
+if calculation_type == "Molarity Calculator":
+    display_return_home_button()
+    st.header("Molarity Calculator")
+    st.markdown("Molarity (M) = moles of solute / volume of solution in liters")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Calculate Molarity")
+        compound_options = ["Custom"] + list(common_compounds.keys())
+        selected_compound = st.selectbox("Select compound or custom", compound_options)
+        
+        if selected_compound == "Custom":
+            formula = st.text_input("Chemical formula (if known)", "")
+            molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f")
+        else:
+            formula = selected_compound
+            molar_mass = common_compounds[selected_compound]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+            
+        mass = st.number_input("Mass of solute (g)", min_value=0.0, value=5.85, format="%.5f")
+        volume = st.number_input("Volume of solution (mL)", min_value=0.001, value=100.0, format="%.5f")
+        
+        if st.button("Calculate Molarity", key="calc_molarity_btn"):
+            if validate_inputs(mass=mass, volume=volume, molar_mass=molar_mass):
+                molarity = calculate_molarity(mass, volume, molar_mass)
+                
+                st.success(f"Molarity = {format_scientific_notation(molarity)} mol/L (M)")
+                
+                # Show calculation steps
+                st.subheader("Calculation Steps:")
+                st.markdown(f"""
+                1. Convert mass to moles:
+                   - Moles = Mass (g) ÷ Molar Mass (g/mol)
+                   - Moles = {mass} g ÷ {molar_mass} g/mol = {format_scientific_notation(mass/molar_mass)} mol
+                
+                2. Convert volume to liters:
+                   - Volume in L = {volume} mL ÷ 1000 = {format_scientific_notation(volume/1000)} L
+                
+                3. Calculate molarity:
+                   - Molarity = Moles ÷ Volume (L)
+                   - Molarity = {format_scientific_notation(mass/molar_mass)} mol ÷ {format_scientific_notation(volume/1000)} L = {format_scientific_notation(molarity)} M
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+    
+    with col2:
+        st.subheader("Find Mass of Solute Needed")
+        compound_options2 = ["Custom"] + list(common_compounds.keys())
+        selected_compound2 = st.selectbox("Select compound or custom", compound_options2, key="compound_select2")
+        
+        if selected_compound2 == "Custom":
+            formula2 = st.text_input("Chemical formula (if known)", "", key="formula2")
+            molar_mass2 = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="mm2")
+        else:
+            formula2 = selected_compound2
+            molar_mass2 = common_compounds[selected_compound2]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass2} g/mol for {selected_compound2}")
+            
+        target_molarity = st.number_input("Target molarity (M)", min_value=0.0, value=1.0, format="%.5f")
+        target_volume = st.number_input("Volume of solution (mL)", min_value=0.001, value=100.0, format="%.5f", key="vol2")
+        
+        if st.button("Calculate Mass Required"):
+            if validate_inputs(molarity=target_molarity, volume=target_volume, molar_mass=molar_mass2):
+                mass_required = calculate_mass_from_molarity(target_molarity, target_volume, molar_mass2)
+                
+                st.success(f"Mass Required = {format_scientific_notation(mass_required)} g")
+                
+                # Show calculation steps
+                st.subheader("Calculation Steps:")
+                st.markdown(f"""
+                1. Convert volume to liters:
+                   - Volume in L = {target_volume} mL ÷ 1000 = {format_scientific_notation(target_volume/1000)} L
+                
+                2. Calculate moles needed:
+                   - Moles = Molarity (M) × Volume (L)
+                   - Moles = {target_molarity} M × {format_scientific_notation(target_volume/1000)} L = {format_scientific_notation(target_molarity * target_volume/1000)} mol
+                
+                3. Calculate mass needed:
+                   - Mass = Moles × Molar Mass (g/mol)
+                   - Mass = {format_scientific_notation(target_molarity * target_volume/1000)} mol × {molar_mass2} g/mol = {format_scientific_notation(mass_required)} g
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+
+elif calculation_type == "Molality Calculator":
+    display_return_home_button()
+    st.header("Molality Calculator")
+    st.markdown("Molality (m) = moles of solute / kg of solvent")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Calculate Molality")
+        compound_options = ["Custom"] + list(common_compounds.keys())
+        selected_compound = st.selectbox("Select compound or custom", compound_options)
+        
+        if selected_compound == "Custom":
+            formula = st.text_input("Chemical formula (if known)", "")
+            molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f")
+        else:
+            formula = selected_compound
+            molar_mass = common_compounds[selected_compound]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+            
+        mass = st.number_input("Mass of solute (g)", min_value=0.0, value=5.85, format="%.5f")
+        solvent_mass = st.number_input("Mass of solvent (g)", min_value=0.001, value=100.0, format="%.5f")
+        
+        if st.button("Calculate Molality"):
+            if validate_inputs(mass=mass, solvent_mass=solvent_mass, molar_mass=molar_mass):
+                molality = calculate_molality(mass, solvent_mass, molar_mass)
+                
+                st.success(f"Molality = {format_scientific_notation(molality)} mol/kg (m)")
+                
+                # Show calculation steps
+                st.subheader("Calculation Steps:")
+                st.markdown(f"""
+                1. Convert mass to moles:
+                   - Moles = Mass (g) ÷ Molar Mass (g/mol)
+                   - Moles = {mass} g ÷ {molar_mass} g/mol = {format_scientific_notation(mass/molar_mass)} mol
+                
+                2. Convert solvent mass to kg:
+                   - Solvent mass in kg = {solvent_mass} g ÷ 1000 = {format_scientific_notation(solvent_mass/1000)} kg
+                
+                3. Calculate molality:
+                   - Molality = Moles ÷ Solvent mass (kg)
+                   - Molality = {format_scientific_notation(mass/molar_mass)} mol ÷ {format_scientific_notation(solvent_mass/1000)} kg = {format_scientific_notation(molality)} m
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+    
+    with col2:
+        st.subheader("Find Mass of Solute Needed")
+        compound_options2 = ["Custom"] + list(common_compounds.keys())
+        selected_compound2 = st.selectbox("Select compound or custom", compound_options2, key="compound_select_molality")
+        
+        if selected_compound2 == "Custom":
+            formula2 = st.text_input("Chemical formula (if known)", "", key="formula_molality")
+            molar_mass2 = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="mm_molality")
+        else:
+            formula2 = selected_compound2
+            molar_mass2 = common_compounds[selected_compound2]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass2} g/mol for {selected_compound2}")
+            
+        target_molality = st.number_input("Target molality (m)", min_value=0.0, value=1.0, format="%.5f")
+        solvent_mass2 = st.number_input("Mass of solvent (g)", min_value=0.001, value=100.0, format="%.5f", key="solvent_mass2")
+        
+        if st.button("Calculate Mass Required"):
+            if validate_inputs(molality=target_molality, solvent_mass=solvent_mass2, molar_mass=molar_mass2):
+                mass_required = calculate_mass_from_molality(target_molality, solvent_mass2, molar_mass2)
+                
+                st.success(f"Mass Required = {format_scientific_notation(mass_required)} g")
+                
+                # Show calculation steps
+                st.subheader("Calculation Steps:")
+                st.markdown(f"""
+                1. Convert solvent mass to kg:
+                   - Solvent mass in kg = {solvent_mass2} g ÷ 1000 = {format_scientific_notation(solvent_mass2/1000)} kg
+                
+                2. Calculate moles needed:
+                   - Moles = Molality (m) × Solvent mass (kg)
+                   - Moles = {target_molality} m × {format_scientific_notation(solvent_mass2/1000)} kg = {format_scientific_notation(target_molality * solvent_mass2/1000)} mol
+                
+                3. Calculate mass needed:
+                   - Mass = Moles × Molar Mass (g/mol)
+                   - Mass = {format_scientific_notation(target_molality * solvent_mass2/1000)} mol × {molar_mass2} g/mol = {format_scientific_notation(mass_required)} g
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+
+elif calculation_type == "Normality Calculator":
+    display_return_home_button()
+    st.header("Normality Calculator")
+    st.markdown("Normality (N) = number of gram equivalents of solute / volume of solution in liters")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Calculate Normality")
+        compound_options = ["Custom"] + list(common_compounds.keys())
+        selected_compound = st.selectbox("Select compound or custom", compound_options, key="normality_compound")
+        
+        if selected_compound == "Custom":
+            formula = st.text_input("Chemical formula (if known)", "", key="normality_formula")
+            molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="normality_mm")
+        else:
+            formula = selected_compound
+            molar_mass = common_compounds[selected_compound]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+            
+        valence_factor = st.number_input("Valence factor (number of H+, OH−, charge, etc.)", min_value=1, value=1, key="valence_factor")
+        mass = st.number_input("Mass of solute (g)", min_value=0.0, value=5.85, format="%.5f", key="normality_mass")
+        volume = st.number_input("Volume of solution (mL)", min_value=0.001, value=100.0, format="%.5f", key="normality_volume")
+        
+        if st.button("Calculate Normality"):
+            if validate_inputs(mass=mass, volume=volume, molar_mass=molar_mass, valence_factor=valence_factor):
+                # Calculate equivalent mass
+                equivalent_mass = calculate_equivalent_mass(molar_mass, valence_factor)
+                
+                # Calculate normality
+                normality = calculate_normality(mass, volume, equivalent_mass)
+                
+                st.success(f"Normality = {format_scientific_notation(normality)} eq/L (N)")
+                
+                # Show calculation steps
+                st.subheader("Calculation Steps:")
+                st.markdown(f"""
+                1. Calculate equivalent mass:
+                   - Equivalent mass = Molar mass ÷ Valence factor
+                   - Equivalent mass = {molar_mass} g/mol ÷ {valence_factor} = {format_scientific_notation(equivalent_mass)} g/eq
+                
+                2. Calculate number of equivalents:
+                   - Equivalents = Mass ÷ Equivalent mass
+                   - Equivalents = {mass} g ÷ {format_scientific_notation(equivalent_mass)} g/eq = {format_scientific_notation(mass/equivalent_mass)} eq
+                
+                3. Convert volume to liters:
+                   - Volume in L = {volume} mL ÷ 1000 = {format_scientific_notation(volume/1000)} L
+                
+                4. Calculate normality:
+                   - Normality = Equivalents ÷ Volume (L)
+                   - Normality = {format_scientific_notation(mass/equivalent_mass)} eq ÷ {format_scientific_notation(volume/1000)} L = {format_scientific_notation(normality)} N
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+    
+    with col2:
+        st.subheader("Find Mass of Solute Needed")
+        compound_options2 = ["Custom"] + list(common_compounds.keys())
+        selected_compound2 = st.selectbox("Select compound or custom", compound_options2, key="normality_compound2")
+        
+        if selected_compound2 == "Custom":
+            formula2 = st.text_input("Chemical formula (if known)", "", key="normality_formula2")
+            molar_mass2 = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="normality_mm2")
+        else:
+            formula2 = selected_compound2
+            molar_mass2 = common_compounds[selected_compound2]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass2} g/mol for {selected_compound2}")
+            
+        valence_factor2 = st.number_input("Valence factor (number of H+, OH−, charge, etc.)", min_value=1, value=1, key="valence_factor2")
+        target_normality = st.number_input("Target normality (N)", min_value=0.0, value=1.0, format="%.5f", key="target_normality")
+        target_volume2 = st.number_input("Volume of solution (mL)", min_value=0.001, value=100.0, format="%.5f", key="normality_vol2")
+        
+        if st.button("Calculate Mass Required", key="normality_mass_calc"):
+            if validate_inputs(normality=target_normality, volume=target_volume2, molar_mass=molar_mass2, valence_factor=valence_factor2):
+                # Calculate equivalent mass
+                equivalent_mass2 = calculate_equivalent_mass(molar_mass2, valence_factor2)
+                
+                # Calculate mass required
+                mass_required = calculate_mass_from_normality(target_normality, target_volume2, equivalent_mass2)
+                
+                st.success(f"Mass Required = {format_scientific_notation(mass_required)} g")
+                
+                # Show calculation steps
+                st.subheader("Calculation Steps:")
+                st.markdown(f"""
+                1. Calculate equivalent mass:
+                   - Equivalent mass = Molar mass ÷ Valence factor
+                   - Equivalent mass = {molar_mass2} g/mol ÷ {valence_factor2} = {format_scientific_notation(equivalent_mass2)} g/eq
+                
+                2. Convert volume to liters:
+                   - Volume in L = {target_volume2} mL ÷ 1000 = {format_scientific_notation(target_volume2/1000)} L
+                
+                3. Calculate equivalents needed:
+                   - Equivalents = Normality (N) × Volume (L)
+                   - Equivalents = {target_normality} N × {format_scientific_notation(target_volume2/1000)} L = {format_scientific_notation(target_normality * target_volume2/1000)} eq
+                
+                4. Calculate mass needed:
+                   - Mass = Equivalents × Equivalent mass
+                   - Mass = {format_scientific_notation(target_normality * target_volume2/1000)} eq × {format_scientific_notation(equivalent_mass2)} g/eq = {format_scientific_notation(mass_required)} g
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+
+elif calculation_type == "Mole Calculator":
+    display_return_home_button()
+    st.header("Mass ↔ Moles Converter")
+    st.markdown("Convert between mass and moles of a substance")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Mass to Moles")
+        compound_options = ["Custom"] + list(common_compounds.keys())
+        selected_compound = st.selectbox("Select compound or custom", compound_options, key="mole_compound")
+        
+        if selected_compound == "Custom":
+            formula = st.text_input("Chemical formula (if known)", "", key="mole_formula")
+            molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="mole_mm")
+        else:
+            formula = selected_compound
+            molar_mass = common_compounds[selected_compound]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+            
+        mass = st.number_input("Mass of substance (g)", min_value=0.0, value=10.0, format="%.5f", key="mole_mass")
+        
+        if st.button("Calculate Moles"):
+            if validate_inputs(mass=mass, molar_mass=molar_mass):
+                moles = calculate_moles(mass, molar_mass)
+                
+                st.success(f"Number of Moles = {format_scientific_notation(moles)} mol")
+                
+                # Show calculation steps
+                st.subheader("Calculation Steps:")
+                st.markdown(f"""
+                Calculate moles from mass:
+                - Moles = Mass (g) ÷ Molar Mass (g/mol)
+                - Moles = {mass} g ÷ {molar_mass} g/mol = {format_scientific_notation(moles)} mol
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+    
+    with col2:
+        st.subheader("Moles to Mass")
+        compound_options2 = ["Custom"] + list(common_compounds.keys())
+        selected_compound2 = st.selectbox("Select compound or custom", compound_options2, key="mole_compound2")
+        
+        if selected_compound2 == "Custom":
+            formula2 = st.text_input("Chemical formula (if known)", "", key="mole_formula2")
+            molar_mass2 = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="mole_mm2")
+        else:
+            formula2 = selected_compound2
+            molar_mass2 = common_compounds[selected_compound2]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass2} g/mol for {selected_compound2}")
+            
+        moles2 = st.number_input("Number of moles", min_value=0.0, value=0.1, format="%.5f", key="moles_input")
+        
+        if st.button("Calculate Mass"):
+            if validate_inputs(moles=moles2, molar_mass=molar_mass2):
+                mass_result = calculate_mass_from_moles(moles2, molar_mass2)
+                
+                st.success(f"Mass = {format_scientific_notation(mass_result)} g")
+                
+                # Show calculation steps
+                st.subheader("Calculation Steps:")
+                st.markdown(f"""
+                Calculate mass from moles:
+                - Mass = Moles × Molar Mass (g/mol)
+                - Mass = {moles2} mol × {molar_mass2} g/mol = {format_scientific_notation(mass_result)} g
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+
+elif calculation_type == "Reagent Preparation":
+    display_return_home_button()
+    st.header("Reagent Preparation Calculator")
+    
+    # Tabs for different reagent preparation scenarios
+    tabs = st.tabs(["Solution by Molarity", "Solution by Concentration (w/v %)", "Dilution Calculator"])
+    
+    # Solution by Molarity tab
+    with tabs[0]:
+        st.subheader("Prepare Solution by Molarity")
+        
+        compound_options = ["Custom"] + list(common_compounds.keys())
+        selected_compound = st.selectbox("Select compound or custom", compound_options, key="reagent_compound")
+        
+        if selected_compound == "Custom":
+            formula = st.text_input("Chemical formula (if known)", "", key="reagent_formula")
+            molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="reagent_mm")
+        else:
+            formula = selected_compound
+            molar_mass = common_compounds[selected_compound]["molar_mass"]
+            st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+        
+        target_molarity = st.number_input("Target molarity (M)", min_value=0.0, value=1.0, format="%.5f", key="reagent_molarity")
+        target_volume = st.number_input("Final volume of solution (mL)", min_value=0.001, value=100.0, format="%.5f", key="reagent_volume")
+        
+        if st.button("Calculate Reagent Preparation", key="calc_reagent"):
+            if validate_inputs(molarity=target_molarity, volume=target_volume, molar_mass=molar_mass):
+                mass_required = calculate_mass_from_molarity(target_molarity, target_volume, molar_mass)
+                
+                st.success(f"Mass of {selected_compound} Required = {format_scientific_notation(mass_required)} g")
+                
+                # Show calculation steps and preparation instructions
+                st.subheader("Preparation Instructions:")
+                st.markdown(f"""
+                **To prepare {target_volume} mL of {target_molarity} M {selected_compound} solution:**
+                
+                1. Calculate the required mass of {selected_compound}:
+                   - Moles needed = Molarity (M) × Volume (L) = {target_molarity} M × {format_scientific_notation(target_volume/1000)} L = {format_scientific_notation(target_molarity * target_volume/1000)} mol
+                   - Mass needed = Moles × Molar Mass = {format_scientific_notation(target_molarity * target_volume/1000)} mol × {molar_mass} g/mol = {format_scientific_notation(mass_required)} g
+                
+                2. Weigh {format_scientific_notation(mass_required)} g of {selected_compound} using an analytical balance.
+                
+                3. Add the {selected_compound} to a volumetric flask that's smaller than the final volume.
+                
+                4. Add distilled water to dissolve the solute, about 1/2 to 2/3 of the final volume.
+                
+                5. Stir or swirl until completely dissolved.
+                
+                6. Add distilled water to reach the final volume of {target_volume} mL.
+                
+                7. Mix thoroughly to ensure uniform concentration.
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+    
+    # Solution by Concentration (w/v %) tab
+    with tabs[1]:
+        st.subheader("Prepare Solution by Concentration (w/v %)")
+        
+        conc_percent = st.number_input("Desired concentration (w/v %)", min_value=0.0, value=5.0, format="%.2f")
+        solution_volume = st.number_input("Final volume of solution (mL)", min_value=0.1, value=100.0, format="%.1f")
+        
+        if st.button("Calculate Mass Required", key="conc_calc"):
+            if validate_inputs(concentration=conc_percent, volume=solution_volume):
+                # w/v % means g per 100 mL
+                mass_needed = (conc_percent * solution_volume) / 100
+                
+                st.success(f"Mass Required = {format_scientific_notation(mass_needed)} g")
+                
+                # Show preparation instructions
+                st.subheader("Preparation Instructions:")
+                st.markdown(f"""
+                **To prepare {solution_volume} mL of {conc_percent}% (w/v) solution:**
+                
+                1. Calculate the required mass:
+                   - For a {conc_percent}% (w/v) solution, you need {conc_percent} g per 100 mL
+                   - For {solution_volume} mL: Mass = ({conc_percent} g × {solution_volume} mL) ÷ 100 mL = {format_scientific_notation(mass_needed)} g
+                
+                2. Weigh {format_scientific_notation(mass_needed)} g of the substance.
+                
+                3. Add the weighed substance to a container with less than {solution_volume} mL of solvent.
+                
+                4. Stir or swirl to dissolve completely.
+                
+                5. Add additional solvent to reach the final volume of {solution_volume} mL.
+                
+                6. Mix thoroughly for a uniform solution.
+                """)
+            else:
+                st.error("Please enter valid values (greater than zero).")
+    
+    # Dilution Calculator tab
+    with tabs[2]:
+        st.subheader("Dilution Calculator (C₁V₁ = C₂V₂)")
+        
+        c1 = st.number_input("Initial concentration (M, %, etc.)", min_value=0.0, value=5.0, format="%.5f")
+        v1 = st.number_input("Volume to take from stock (mL)", min_value=0.0, value=20.0, format="%.5f")
+        c2 = st.number_input("Target concentration (same units as initial)", min_value=0.0, value=1.0, format="%.5f")
+        v2 = st.number_input("Final volume (mL)", min_value=0.0, value=100.0, format="%.5f")
+        
+        # Radio buttons to determine which variable to calculate
+        calc_variable = st.radio(
+            "Select variable to calculate",
+            ["Volume to take from stock (V₁)", "Final volume (V₂)"]
+        )
+        
+        if st.button("Calculate Dilution", key="dilution_calc"):
+            if calc_variable == "Volume to take from stock (V₁)":
+                if validate_inputs(concentration1=c1, concentration2=c2, volume2=v2):
+                    # Calculate V1 using C1V1 = C2V2
+                    calculated_v1 = (c2 * v2) / c1
+                    
+                    st.success(f"Volume to take from stock = {format_scientific_notation(calculated_v1)} mL")
+                    
+                    # Show dilution instructions
+                    st.subheader("Dilution Instructions:")
+                    st.markdown(f"""
+                    **To prepare {v2} mL of {c2} concentration solution from a {c1} concentration stock:**
+                    
+                    1. Calculate the volume needed from stock:
+                       - Using C₁V₁ = C₂V₂
+                       - V₁ = (C₂ × V₂) ÷ C₁ = ({c2} × {v2} mL) ÷ {c1} = {format_scientific_notation(calculated_v1)} mL
+                    
+                    2. Measure {format_scientific_notation(calculated_v1)} mL of the stock solution using an appropriate pipette.
+                    
+                    3. Transfer this measured volume to a volumetric flask.
+                    
+                    4. Add solvent (usually water) to reach the final volume of {v2} mL.
+                    
+                    5. Mix thoroughly to ensure uniform concentration.
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+            else:  # Calculate V2
+                if validate_inputs(concentration1=c1, concentration2=c2, volume1=v1):
+                    # Calculate V2 using C1V1 = C2V2
+                    calculated_v2 = (c1 * v1) / c2
+                    
+                    st.success(f"Final volume = {format_scientific_notation(calculated_v2)} mL")
+                    
+                    # Show dilution instructions
+                    st.subheader("Dilution Instructions:")
+                    st.markdown(f"""
+                    **To determine the final volume when using {v1} mL of {c1} concentration stock to prepare a {c2} concentration solution:**
+                    
+                    1. Calculate the final volume:
+                       - Using C₁V₁ = C₂V₂
+                       - V₂ = (C₁ × V₁) ÷ C₂ = ({c1} × {v1} mL) ÷ {c2} = {format_scientific_notation(calculated_v2)} mL
+                    
+                    2. Measure {v1} mL of the stock solution using an appropriate pipette.
+                    
+                    3. Transfer this measured volume to a volumetric flask.
+                    
+                    4. Add solvent (usually water) to reach the final volume of {format_scientific_notation(calculated_v2)} mL.
+                    
+                    5. Mix thoroughly to ensure uniform concentration.
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+
+elif calculation_type == "Unit Conversion":
+    display_return_home_button()
+    st.header("Concentration Unit Conversion")
+    
+    # Select unit conversion type
+    conversion_type = st.selectbox(
+        "Select conversion type",
+        ["Molarity (M) ↔ Mass Concentration (g/L)",
+         "Molarity (M) ↔ Weight Percentage (w/v %)",
+         "Molality (m) ↔ Molarity (M)",
+         "Parts Per Million (ppm) ↔ Molarity (M)"]
+    )
+    
+    if conversion_type == "Molarity (M) ↔ Mass Concentration (g/L)":
+        # Create columns for bidirectional conversion
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Molarity → g/L")
+            
+            compound_options = ["Custom"] + list(common_compounds.keys())
+            selected_compound = st.selectbox("Select compound or custom", compound_options, key="ml_to_g_compound")
+            
+            if selected_compound == "Custom":
+                molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="ml_to_g_mm")
+            else:
+                molar_mass = common_compounds[selected_compound]["molar_mass"]
+                st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+            
+            molarity = st.number_input("Molarity (mol/L)", min_value=0.0, value=1.0, format="%.5f", key="mol_to_g_molarity")
+            
+            if st.button("Convert to g/L", key="mol_to_g_convert"):
+                if validate_inputs(molarity=molarity, molar_mass=molar_mass):
+                    # Calculation: g/L = Molarity (mol/L) * Molar Mass (g/mol)
+                    g_per_l = molarity * molar_mass
+                    
+                    st.success(f"Concentration: {format_scientific_notation(g_per_l)} g/L")
+                    
+                    # Show calculation steps
+                    st.markdown(f"""
+                    **Calculation:**
+                    - g/L = Molarity (mol/L) × Molar Mass (g/mol)
+                    - g/L = {molarity} mol/L × {molar_mass} g/mol = {format_scientific_notation(g_per_l)} g/L
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+        
+        with col2:
+            st.subheader("g/L → Molarity")
+            
+            compound_options2 = ["Custom"] + list(common_compounds.keys())
+            selected_compound2 = st.selectbox("Select compound or custom", compound_options2, key="g_to_ml_compound")
+            
+            if selected_compound2 == "Custom":
+                molar_mass2 = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="g_to_ml_mm")
+            else:
+                molar_mass2 = common_compounds[selected_compound2]["molar_mass"]
+                st.info(f"Using molar mass of {molar_mass2} g/mol for {selected_compound2}")
+            
+            g_per_l = st.number_input("Concentration (g/L)", min_value=0.0, value=58.44, format="%.5f", key="g_to_mol_conc")
+            
+            if st.button("Convert to Molarity", key="g_to_mol_convert"):
+                if validate_inputs(concentration=g_per_l, molar_mass=molar_mass2):
+                    # Calculation: Molarity (mol/L) = g/L / Molar Mass (g/mol)
+                    molarity = g_per_l / molar_mass2
+                    
+                    st.success(f"Molarity: {format_scientific_notation(molarity)} mol/L (M)")
+                    
+                    # Show calculation steps
+                    st.markdown(f"""
+                    **Calculation:**
+                    - Molarity (mol/L) = Concentration (g/L) ÷ Molar Mass (g/mol)
+                    - Molarity = {g_per_l} g/L ÷ {molar_mass2} g/mol = {format_scientific_notation(molarity)} mol/L (M)
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+    
+    elif conversion_type == "Molarity (M) ↔ Weight Percentage (w/v %)":
+        # Create columns for bidirectional conversion
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Molarity → w/v %")
+            
+            compound_options = ["Custom"] + list(common_compounds.keys())
+            selected_compound = st.selectbox("Select compound or custom", compound_options, key="m_to_wv_compound")
+            
+            if selected_compound == "Custom":
+                molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="m_to_wv_mm")
+            else:
+                molar_mass = common_compounds[selected_compound]["molar_mass"]
+                st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+            
+            molarity = st.number_input("Molarity (mol/L)", min_value=0.0, value=1.0, format="%.5f", key="m_to_wv_molarity")
+            
+            if st.button("Convert to w/v %", key="m_to_wv_convert"):
+                if validate_inputs(molarity=molarity, molar_mass=molar_mass):
+                    # Calculation: w/v % = Molarity (mol/L) * Molar Mass (g/mol) * 0.1
+                    wv_percent = molarity * molar_mass * 0.1
+                    
+                    st.success(f"Concentration: {format_scientific_notation(wv_percent)} % (w/v)")
+                    
+                    # Show calculation steps
+                    st.markdown(f"""
+                    **Calculation:**
+                    - First, convert to g/L: g/L = Molarity (mol/L) × Molar Mass (g/mol)
+                    - g/L = {molarity} mol/L × {molar_mass} g/mol = {format_scientific_notation(molarity * molar_mass)} g/L
+                    - Then, convert g/L to w/v %: w/v % = g/L ÷ 10
+                    - w/v % = {format_scientific_notation(molarity * molar_mass)} g/L ÷ 10 = {format_scientific_notation(wv_percent)} % (w/v)
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+        
+        with col2:
+            st.subheader("w/v % → Molarity")
+            
+            compound_options2 = ["Custom"] + list(common_compounds.keys())
+            selected_compound2 = st.selectbox("Select compound or custom", compound_options2, key="wv_to_m_compound")
+            
+            if selected_compound2 == "Custom":
+                molar_mass2 = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="wv_to_m_mm")
+            else:
+                molar_mass2 = common_compounds[selected_compound2]["molar_mass"]
+                st.info(f"Using molar mass of {molar_mass2} g/mol for {selected_compound2}")
+            
+            wv_percent = st.number_input("Concentration (w/v %)", min_value=0.0, value=5.0, format="%.5f", key="wv_to_m_conc")
+            
+            if st.button("Convert to Molarity", key="wv_to_m_convert"):
+                if validate_inputs(concentration=wv_percent, molar_mass=molar_mass2):
+                    # Calculation: Molarity (mol/L) = (w/v % * 10) / Molar Mass (g/mol)
+                    molarity = (wv_percent * 10) / molar_mass2
+                    
+                    st.success(f"Molarity: {format_scientific_notation(molarity)} mol/L (M)")
+                    
+                    # Show calculation steps
+                    st.markdown(f"""
+                    **Calculation:**
+                    - First, convert w/v % to g/L: g/L = w/v % × 10
+                    - g/L = {wv_percent} % × 10 = {format_scientific_notation(wv_percent * 10)} g/L
+                    - Then, convert g/L to molarity: Molarity (mol/L) = g/L ÷ Molar Mass (g/mol)
+                    - Molarity = {format_scientific_notation(wv_percent * 10)} g/L ÷ {molar_mass2} g/mol = {format_scientific_notation(molarity)} mol/L (M)
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+    
+    elif conversion_type == "Molality (m) ↔ Molarity (M)":
+        st.info("Note: This conversion requires the density of the solution, which varies with concentration and temperature.")
+        
+        # Create columns for bidirectional conversion
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Molality → Molarity")
+            
+            compound_options = ["Custom"] + list(common_compounds.keys())
+            selected_compound = st.selectbox("Select compound or custom", compound_options, key="molal_to_molar_compound")
+            
+            if selected_compound == "Custom":
+                molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="molal_to_molar_mm")
+            else:
+                molar_mass = common_compounds[selected_compound]["molar_mass"]
+                st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+            
+            molality = st.number_input("Molality (mol/kg)", min_value=0.0, value=1.0, format="%.5f", key="molal_to_molar_molality")
+            solution_density = st.number_input("Solution density (g/mL)", min_value=0.001, value=1.03, format="%.5f", key="molal_to_molar_density")
+            
+            if st.button("Convert to Molarity", key="molal_to_molar_convert"):
+                if validate_inputs(molality=molality, density=solution_density, molar_mass=molar_mass):
+                    # Approximate conversion (based on dilute solutions)
+                    # M = m * d / (1 + m * M/1000)
+                    molarity = (molality * solution_density) / (1 + (molality * molar_mass / 1000))
+                    
+                    st.success(f"Molarity: {format_scientific_notation(molarity)} mol/L (M)")
+                    
+                    # Show calculation explanation
+                    st.markdown(f"""
+                    **Calculation:**
+                    - Conversion formula: Molarity = (Molality × Density) ÷ (1 + (Molality × Molar Mass ÷ 1000))
+                    - Molarity = ({molality} mol/kg × {solution_density} g/mL) ÷ (1 + ({molality} mol/kg × {molar_mass} g/mol ÷ 1000))
+                    - Molarity = {format_scientific_notation(molality * solution_density)} ÷ {format_scientific_notation(1 + (molality * molar_mass / 1000))}
+                    - Molarity = {format_scientific_notation(molarity)} mol/L (M)
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+        
+        with col2:
+            st.subheader("Molarity → Molality")
+            
+            compound_options2 = ["Custom"] + list(common_compounds.keys())
+            selected_compound2 = st.selectbox("Select compound or custom", compound_options2, key="molar_to_molal_compound")
+            
+            if selected_compound2 == "Custom":
+                molar_mass2 = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="molar_to_molal_mm")
+            else:
+                molar_mass2 = common_compounds[selected_compound2]["molar_mass"]
+                st.info(f"Using molar mass of {molar_mass2} g/mol for {selected_compound2}")
+            
+            molarity = st.number_input("Molarity (mol/L)", min_value=0.0, value=1.0, format="%.5f", key="molar_to_molal_molarity")
+            solution_density2 = st.number_input("Solution density (g/mL)", min_value=0.001, value=1.03, format="%.5f", key="molar_to_molal_density")
+            
+            if st.button("Convert to Molality", key="molar_to_molal_convert"):
+                if validate_inputs(molarity=molarity, density=solution_density2, molar_mass=molar_mass2):
+                    # Approximate conversion (based on dilute solutions)
+                    # m = M / (d - M * M/1000)
+                    mass_solute_per_L = molarity * molar_mass2
+                    mass_solvent_per_L = (solution_density2 * 1000) - mass_solute_per_L
+                    molality = (molarity * 1000) / mass_solvent_per_L
+                    
+                    st.success(f"Molality: {format_scientific_notation(molality)} mol/kg (m)")
+                    
+                    # Show calculation explanation
+                    st.markdown(f"""
+                    **Calculation:**
+                    1. Calculate mass of solute per liter:
+                       - Mass of solute = Molarity × Molar Mass = {molarity} mol/L × {molar_mass2} g/mol = {format_scientific_notation(mass_solute_per_L)} g/L
+                    
+                    2. Calculate mass of solvent per liter:
+                       - Mass of solution = Density × 1000 = {solution_density2} g/mL × 1000 mL/L = {format_scientific_notation(solution_density2 * 1000)} g/L
+                       - Mass of solvent = Mass of solution - Mass of solute = {format_scientific_notation(solution_density2 * 1000)} g/L - {format_scientific_notation(mass_solute_per_L)} g/L = {format_scientific_notation(mass_solvent_per_L)} g/L
+                    
+                    3. Calculate molality:
+                       - Molality = (Moles of solute × 1000) ÷ Mass of solvent in g
+                       - Molality = ({molarity} mol/L × 1000) ÷ {format_scientific_notation(mass_solvent_per_L)} g = {format_scientific_notation(molality)} mol/kg
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+    
+    elif conversion_type == "Parts Per Million (ppm) ↔ Molarity (M)":
+        # Create columns for bidirectional conversion
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("ppm → Molarity")
+            
+            compound_options = ["Custom"] + list(common_compounds.keys())
+            selected_compound = st.selectbox("Select compound or custom", compound_options, key="ppm_to_molar_compound")
+            
+            if selected_compound == "Custom":
+                molar_mass = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="ppm_to_molar_mm")
+            else:
+                molar_mass = common_compounds[selected_compound]["molar_mass"]
+                st.info(f"Using molar mass of {molar_mass} g/mol for {selected_compound}")
+            
+            ppm = st.number_input("Concentration (ppm)", min_value=0.0, value=1000.0, format="%.5f", key="ppm_to_molar_ppm")
+            solution_density = st.number_input("Solution density (g/mL)", min_value=0.001, value=1.0, format="%.5f", key="ppm_to_molar_density")
+            
+            if st.button("Convert to Molarity", key="ppm_to_molar_convert"):
+                if validate_inputs(concentration=ppm, density=solution_density, molar_mass=molar_mass):
+                    # For dilute aqueous solutions:
+                    # 1 ppm = 1 mg/L
+                    # Molarity = (ppm * 0.001) / molar_mass
+                    molarity = (ppm * 0.001) / molar_mass
+                    
+                    st.success(f"Molarity: {format_scientific_notation(molarity)} mol/L (M)")
+                    
+                    # Show calculation steps
+                    st.markdown(f"""
+                    **Calculation:**
+                    - For dilute aqueous solutions, 1 ppm ≈ 1 mg/L
+                    - Convert ppm to g/L: g/L = ppm × 0.001
+                    - g/L = {ppm} ppm × 0.001 = {format_scientific_notation(ppm * 0.001)} g/L
+                    - Convert g/L to molarity: Molarity = g/L ÷ Molar Mass
+                    - Molarity = {format_scientific_notation(ppm * 0.001)} g/L ÷ {molar_mass} g/mol = {format_scientific_notation(molarity)} mol/L (M)
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+        
+        with col2:
+            st.subheader("Molarity → ppm")
+            
+            compound_options2 = ["Custom"] + list(common_compounds.keys())
+            selected_compound2 = st.selectbox("Select compound or custom", compound_options2, key="molar_to_ppm_compound")
+            
+            if selected_compound2 == "Custom":
+                molar_mass2 = st.number_input("Molar mass (g/mol)", min_value=0.001, value=58.44, format="%.5f", key="molar_to_ppm_mm")
+            else:
+                molar_mass2 = common_compounds[selected_compound2]["molar_mass"]
+                st.info(f"Using molar mass of {molar_mass2} g/mol for {selected_compound2}")
+            
+            molarity = st.number_input("Molarity (mol/L)", min_value=0.0, value=0.001, format="%.8f", key="molar_to_ppm_molarity")
+            
+            if st.button("Convert to ppm", key="molar_to_ppm_convert"):
+                if validate_inputs(molarity=molarity, molar_mass=molar_mass2):
+                    # Calculation: ppm = molarity * molar_mass * 1000
+                    ppm = molarity * molar_mass2 * 1000
+                    
+                    st.success(f"Concentration: {format_scientific_notation(ppm)} ppm")
+                    
+                    # Show calculation steps
+                    st.markdown(f"""
+                    **Calculation:**
+                    - First, convert molarity to g/L: g/L = Molarity × Molar Mass
+                    - g/L = {molarity} mol/L × {molar_mass2} g/mol = {format_scientific_notation(molarity * molar_mass2)} g/L
+                    - Then, convert g/L to ppm: ppm = g/L × 1000
+                    - ppm = {format_scientific_notation(molarity * molar_mass2)} g/L × 1000 = {format_scientific_notation(ppm)} ppm
+                    """)
+                else:
+                    st.error("Please enter valid values (greater than zero).")
+
+elif calculation_type == "Chemical Data Reference":
+    display_return_home_button()
+    st.header("Chemical Data Reference")
+    
+    reference_type = st.radio(
+        "Select reference data",
+        ["Periodic Table of Elements", "Common Compounds and Solutions"]
+    )
+    
+    if reference_type == "Periodic Table of Elements":
+        st.subheader("Periodic Table Elements")
+        
+        # Search functionality
+        search_element = st.text_input("Search for an element (symbol, name, or atomic number):", "")
+        
+        if search_element:
+            # Convert search to lowercase for case-insensitive matching
+            search_lower = search_element.lower()
+            
+            # Filter elements that match the search
+            filtered_elements = {symbol: data for symbol, data in periodic_table.items() 
+                               if search_lower in symbol.lower() or 
+                                 search_lower in data['name'].lower() or 
+                                 search_lower == str(data['atomic_number'])}
+            
+            if filtered_elements:
+                # Display matching elements in a table
+                element_df = pd.DataFrame([
+                    {
+                        'Symbol': symbol,
+                        'Name': data['name'],
+                        'Atomic Number': data['atomic_number'],
+                        'Atomic Mass (g/mol)': data['atomic_mass'],
+                        'Category': data.get('category', ''),
+                        'Electron Configuration': data.get('electron_configuration', '')
+                    }
+                    for symbol, data in filtered_elements.items()
+                ])
+                
+                st.dataframe(element_df)
+                
+                # Show detailed info for the first match
+                if len(filtered_elements) == 1:
+                    element_symbol = list(filtered_elements.keys())[0]
+                    element_data = filtered_elements[element_symbol]
+                    
+                    st.subheader(f"Detailed Information: {element_data['name']} ({element_symbol})")
+                    
+                    # Create columns for better layout
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown(f"""
+                        **General Properties:**
+                        - Atomic Number: {element_data['atomic_number']}
+                        - Atomic Mass: {element_data['atomic_mass']} g/mol
+                        - Category: {element_data.get('category', 'Not specified')}
+                        - Electron Configuration: {element_data.get('electron_configuration', 'Not specified')}
+                        - Period: {element_data.get('period', 'Not specified')}
+                        - Group: {element_data.get('group', 'Not specified')}
+                        """)
+                    
+                    with col2:
+                        st.markdown(f"""
+                        **Physical Properties:**
+                        - Density: {element_data.get('density', 'Not specified')} g/cm³
+                        - Melting Point: {element_data.get('melting_point', 'Not specified')} K
+                        - Boiling Point: {element_data.get('boiling_point', 'Not specified')} K
+                        - Electronegativity: {element_data.get('electronegativity', 'Not specified')}
+                        - Ionization Energy: {element_data.get('ionization_energy', 'Not specified')} eV
+                        """)
+            else:
+                st.warning(f"No elements found matching '{search_element}'")
+        else:
+            # Display a table of all elements
+            element_df = pd.DataFrame([
+                {
+                    'Symbol': symbol,
+                    'Name': data['name'],
+                    'Atomic Number': data['atomic_number'],
+                    'Atomic Mass (g/mol)': data['atomic_mass'],
+                    'Category': data.get('category', '')
+                }
+                for symbol, data in periodic_table.items()
+            ])
+            
+            st.dataframe(element_df)
+            
+            st.info("Enter an element symbol, name, or atomic number in the search box for detailed information.")
+    
+    else:  # Common Compounds and Solutions
+        st.subheader("Common Compounds and Solutions")
+        
+        # Search functionality
+        search_compound = st.text_input("Search for a compound (name or formula):", "")
+        
+        if search_compound:
+            # Convert search to lowercase for case-insensitive matching
+            search_lower = search_compound.lower()
+            
+            # Filter compounds that match the search
+            filtered_compounds = {name: data for name, data in common_compounds.items() 
+                                if search_lower in name.lower() or 
+                                 (data.get('formula', '') and search_lower in data['formula'].lower())}
+            
+            if filtered_compounds:
+                # Display matching compounds in a table
+                compound_df = pd.DataFrame([
+                    {
+                        'Name': name,
+                        'Formula': data.get('formula', ''),
+                        'Molar Mass (g/mol)': data['molar_mass'],
+                        'Type': data.get('type', '')
+                    }
+                    for name, data in filtered_compounds.items()
+                ])
+                
+                st.dataframe(compound_df)
+                
+                # Show detailed info for the first match
+                if len(filtered_compounds) == 1:
+                    compound_name = list(filtered_compounds.keys())[0]
+                    compound_data = filtered_compounds[compound_name]
+                    
+                    st.subheader(f"Detailed Information: {compound_name}")
+                    
+                    # Create columns for better layout
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown(f"""
+                        **General Properties:**
+                        - Formula: {compound_data.get('formula', 'Not specified')}
+                        - Molar Mass: {compound_data['molar_mass']} g/mol
+                        - Type: {compound_data.get('type', 'Not specified')}
+                        """)
+                    
+                    with col2:
+                        st.markdown(f"""
+                        **Laboratory Information:**
+                        - Hazards: {compound_data.get('hazards', 'Not specified')}
+                        - Solubility in water: {compound_data.get('solubility', 'Not specified')}
+                        - Common uses: {compound_data.get('uses', 'Not specified')}
+                        """)
+                    
+                    # Show preparation info if available
+                    if 'preparation' in compound_data:
+                        st.subheader("Common Preparation Methods:")
+                        st.markdown(compound_data['preparation'])
+            else:
+                st.warning(f"No compounds found matching '{search_compound}'")
+        else:
+            # Display a table of all compounds
+            compound_df = pd.DataFrame([
+                {
+                    'Name': name,
+                    'Formula': data.get('formula', ''),
+                    'Molar Mass (g/mol)': data['molar_mass'],
+                    'Type': data.get('type', '')
+                }
+                for name, data in common_compounds.items()
+            ])
+            
+            st.dataframe(compound_df)
+            
+            st.info("Enter a compound name or formula in the search box for detailed information.")
+
+# Footer with information
+st.markdown("---")
+st.markdown("""
+**About this Calculator:**
+
+This Chemistry Laboratory Calculator is designed to assist with common laboratory calculations, reagent preparation, and reference data. 
+It provides step-by-step calculations to help ensure accuracy in laboratory work.
+
+**Disclaimer:** While every effort has been made to ensure accuracy, always verify critical calculations and consult appropriate reference materials.
+
+---
+
+*Created by H.M.Pathak*  
+*© 2025 | Laboratory Calculator*
+""")
